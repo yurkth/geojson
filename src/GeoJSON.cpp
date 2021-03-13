@@ -1,4 +1,4 @@
-#include "GeoJSON.h"
+#include "GeoJSON.hpp"
 
 namespace s3d {
     namespace detail {

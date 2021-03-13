@@ -1,5 +1,5 @@
 ﻿#include <Siv3D.hpp> // OpenSiv3D v0.6
-#include "GeoJSON.h"
+#include "GeoJSON.hpp"
 
 struct Prefecture {
     String name;

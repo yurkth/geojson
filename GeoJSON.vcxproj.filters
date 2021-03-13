@@ -32,7 +32,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\GeoJSON.h">
+    <ClInclude Include="src\GeoJSON.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
