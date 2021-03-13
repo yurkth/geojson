@@ -6,7 +6,7 @@
 
 ![](https://user-images.githubusercontent.com/59264002/110233190-afa23600-7f65-11eb-8733-0631bbaf21bf.png)
 
-# Usage
+## Usage
 
 `src/GeoJSON.h`をincludeして使えます。詳しい使い方はコメントや`src/Main.cpp`のサンプル、[GeoJSONのドキュメント](https://tools.ietf.org/html/rfc7946)を参照してください。
 
@@ -14,9 +14,14 @@
 
 このとき、OpenSiv3Dソリューションのプロパティから依存関係の設定を忘れないようにしてください。
 
-# Requirement
+## Requirement
 
 GeoJSONは[Visual Studio 2019](https://visualstudio.microsoft.com/ja/vs/) v16.9以降と[OpenSiv3D v0.6](https://github.com/Siv3D/OpenSiv3D/tree/v6_master)を使ってビルドできます。
+
+## Author
+
+- [torin](https://github.com/yurkth)
+- [Ryo Suzuki](https://github.com/Reputeless)
 
 ## License
 
@@ -26,3 +31,5 @@ GeoJSONのソースコードはMITライセンスです。詳しくは[LICENSE](
 
 - [geo-countries](https://datahub.io/core/geo-countries)(`App/countries.geojson`)は[PDDL v1.0](https://opendatacommons.org/licenses/pddl/1-0/)でライセンスされています。
   - `App/countries.geojson`を改変した`App/japan.geojson`もPDDL v1.0でライセンスされています。
+- [dataofjapan/land](https://github.com/dataofjapan/land)はパブリックドメインです。
+  - `App/prefectures.geojson`はlandの`japan.geojson`をリネームしたものです。

@@ -2,286 +2,196 @@
 #include <Siv3D.hpp>
 #include <variant>
 
-namespace geojson {
+// [ToDo] 一部の地形表示がバグる (おそらく OpenSiv3D の問題なので要調査）
+// [ToDo] 形状を扱いやすい座標に変換する関数
+
+namespace s3d {
     /// @brief GeoJSONで定義されているオブジェクトの型
     /// @detail https://tools.ietf.org/html/rfc7946#section-1.4
     enum class GeoJSONType {
         Point,
+
         MultiPoint,
+
         LineString,
+
         MultiLineString,
+
         Polygon,
+
         MultiPolygon,
+
         GeometryCollection,
+
         Feature,
+
         FeatureCollection
     };
 
-    inline void Formatter(FormatData& formatData, const GeoJSONType& type) {
-        static const String typeString[] = {
-            U"Point",
-            U"MultiPoint",
-            U"LineString",
-            U"MultiLineString",
-            U"Polygon",
-            U"MultiPolygon",
-            U"GeometryCollection",
-            U"Feature",
-            U"FeatureCollection"
-        };
-        formatData.string.append(typeString[static_cast<size_t>(type)]);
-    }
+    void Formatter(FormatData& formatData, const GeoJSONType& type);
 
-    namespace detail {
-        /// @brief GeoJSONオブジェクトの基底クラス
-        /// @detail https://tools.ietf.org/html/rfc7946#section-3
-        class GeoJSONBase {
-        private:
-            /// @brief GeoJSONオブジェクトの型を読み取る
-            /// @param object JSON内のオブジェクト
-            /// @return オブジェクトの型
-            static GeoJSONType readType(const JSON& object) {
-                if (object.isEmpty()) {
-                    throw Error(U"JSON object is empty");
-                }
+    /// @brief GeoJSON オブジェクトの基本クラス
+    /// @detail https://tools.ietf.org/html/rfc7946#section-3
+    class GeoJSONBase {
+    public:
 
-                const String typeString = object.getString();
-                if (typeString == U"Point") {
-                    return GeoJSONType::Point;
-                }
-                else if (typeString == U"MultiPoint") {
-                    return GeoJSONType::MultiPoint;
-                }
-                else if (typeString == U"LineString") {
-                    return GeoJSONType::LineString;
-                }
-                else if (typeString == U"MultiLineString") {
-                    return GeoJSONType::MultiLineString;
-                }
-                else if (typeString == U"Polygon") {
-                    return GeoJSONType::Polygon;
-                }
-                else if (typeString == U"MultiPolygon") {
-                    return GeoJSONType::MultiPolygon;
-                }
-                else if (typeString == U"GeometryCollection") {
-                    return GeoJSONType::GeometryCollection;
-                }
-                else if (typeString == U"Feature") {
-                    return GeoJSONType::Feature;
-                }
-                else if (typeString == U"FeatureCollection") {
-                    return GeoJSONType::FeatureCollection;
-                }
-                else {
-                    throw Error(U"\"type\" value is wrong");
-                }
-            }
+        /// @brief デフォルトコンストラクタ
+        SIV3D_NODISCARD_CXX20
+            GeoJSONBase() = default;
 
-        protected:
-            /// @brief オブジェクトから配列を読み取る
-            /// @tparam T 配列のvalue_type
-            /// @param arr JSON内の配列
-            /// @param function 配列の要素に適用する関数
-            /// @param exclusion 末尾から読み飛ばす要素数
-            /// @return 読み取った配列
-            template <class T>
-            static Array<T> readArray(const JSON& arr, const std::function<T(const JSON&)>& function, size_t exclusion = 0) {
-                assert(arr.isArray());
-                Array<T> result;
-                for (size_t i = 0; i < arr.size() - exclusion; i++) {
-                    result << function(arr[i]);
-                }
-                return result;
-            }
+        /// @brief GeoJSON オブジェクトを作成します。
+        /// @param object JSON データ
+        SIV3D_NODISCARD_CXX20
+            GeoJSONBase(const JSON& object);
 
-        public:
-            /// @brief GeoJSONオブジェクトの型
-            GeoJSONType type;
+        /// @brief バウンディングボックスデータを返します。
+        /// @return バウンディングボックスデータ
+        [[nodiscard]]
+        const Array<double>& getBBox() const noexcept;
 
-            /// @brief バウンディングボックスの配列
-            /// @detail https://tools.ietf.org/html/rfc7946#section-5
-            Optional<Array<double>> bbox = none; // bboxを使った処理については未実装
+        /// @brief GeoJSON type を返します。
+        /// @return このオブジェクトの GeoJSON type
+        [[nodiscard]]
+        GeoJSONType getType() const noexcept;
 
-            /// @brief GeoJSONオブジェクトを作る
-            /// @param object JSON内のオブジェクト
-            GeoJSONBase(const JSON& object)
-                : type(readType(object[U"type"])) {
-                if (object.hasElement(U"bbox")) {
-                    bbox = readArray<double>(object[U"bbox"], [](const JSON& element) { return element.get<double>(); });
-                }
-            }
-        };
-    }
+    protected:
 
-    /// @brief Geometryオブジェクト
+        /// @brief バウンディングボックス
+        /// @detail https://tools.ietf.org/html/rfc7946#section-5
+        Array<double> m_bbox;
+
+        /// @brief GeoJSON type
+        GeoJSONType m_type = GeoJSONType::Feature;
+    };
+
+    /// @brief GeoJSON Geometry オブジェクト
     /// @detail https://tools.ietf.org/html/rfc7946#section-3.1
-    class Geometry : public detail::GeoJSONBase {
+    class GeoJSONGeometry : public GeoJSONBase {
+    public:
+
+        /// @brief デフォルトコンストラクタ
+        SIV3D_NODISCARD_CXX20
+            GeoJSONGeometry() = default;
+
+        /// @brief Geometry オブジェクトを作成します。
+        /// @param object JSON データ
+        SIV3D_NODISCARD_CXX20
+            GeoJSONGeometry(const JSON& object);
+
+        /// @brief 形状データを取得します。
+        /// @tparam Type 形状データの型
+        /// @return 形状データ
+        template <class Type>
+        [[nodiscard]]
+        Type get() const;
+
+        /// @brief 形状データをもとに MultiPolygon を作成して返します。
+        /// @return 形状データをもとに作成した　MultiPolygon
+        [[nodiscard]]
+        MultiPolygon getPolygons() const;
+
+        /// @brief 図形を引数にして関数を呼び出します。
+        /// @tparam Visitor Visitor オブジェクトの型
+        /// @param visitor Visitor オブジェクト
+        template <class Visitor>
+        void visit(Visitor&& visitor) const {
+            return std::visit(std::forward<Visitor>(visitor), getCache());
+        }
+
+        friend void Formatter(FormatData& formatData, const GeoJSONGeometry& geometry) {
+            _Formatter(formatData, geometry);
+        }
+
     private:
-        /// @brief Geometryオブジェクトの持つ図形
-        std::variant<
+
+        using MonoState = int32; // std::visit で Format できるように。
+
+        using GeometryVariant = std::variant<
+            MonoState,
             Vec2,
             Array<Vec2>,
             LineString,
             Array<LineString>,
             Polygon,
-            Array<Polygon>, // MultiPolygonにする？
-            Array<Geometry>
-        > m_data;
+            Array<Polygon>,
+            Array<GeoJSONGeometry>>;
 
-        /// @brief 座標を読み取る
-        /// @param arr JSON内の配列
-        /// @return 読み取った座標
-        static Vec2 readVec2(const JSON& arr) {
-            return { arr[0].get<double>(), arr[1].get<double>() };
-        }
+        JSON m_coordinates;
 
-        /// @brief ポリゴンを読み取る
-        /// @param arr JSON内の配列
-        /// @return 読み取ったポリゴン
-        static Polygon readPolygon(const JSON& arr) {
-            const auto& outer = readArray<Vec2>(arr[0], readVec2, 1);
-            Polygon polygon{ Geometry2D::IsClockwise(outer) ? outer : outer.reversed() };
-            for (size_t i = 1; i < arr.size(); i++) {
-                const auto& inner = readArray<Vec2>(arr[i], readVec2, 1);
-                polygon.addHole(Geometry2D::IsClockwise(inner) ? inner.reversed() : inner);
-            }
-            if (polygon.outer() == Array<Vec2>{}) {
-                throw Error(U"Incorrect Polygon");
-            }
-            return polygon;
-        }
+        mutable GeometryVariant m_cache;
 
-    public:
-        /// @brief Geometryオブジェクトを作る
-        /// @param object JSON内のオブジェクト
-        Geometry(const JSON& object)
-            : detail::GeoJSONBase({ object }) {
-            switch (type) {
-            case GeoJSONType::Point:
-                m_data = readVec2(object[U"coordinates"]);
-                break;
-            case GeoJSONType::MultiPoint:
-                m_data = readArray<Vec2>(object[U"coordinates"], readVec2);
-                break;
-            case GeoJSONType::LineString:
-                m_data = LineString{ readArray<Vec2>(object[U"coordinates"], readVec2) };
-                break;
-            case GeoJSONType::MultiLineString:
-                m_data = readArray<LineString>(
-                    object[U"coordinates"],
-                    [this](const JSON& element) { return LineString{ readArray<Vec2>(element, readVec2) }; }
-                );
-                break;
-            case GeoJSONType::Polygon:
-                m_data = readPolygon(object[U"coordinates"]);
-                break;
-            case GeoJSONType::MultiPolygon:
-                m_data = readArray<Polygon>(object[U"coordinates"], readPolygon);
-                break;
-            case GeoJSONType::GeometryCollection:
-                m_data = readArray<Geometry>(
-                    object[U"geometries"],
-                    [](const JSON& element) { return Geometry{ element }; }
-                );
-                break;
-            default:
-                throw Error(U"\"{}\" is not \"geometry type\""_fmt(object[U"type"].getString()));
-            }
-        }
+        const GeometryVariant& getCache() const;
 
-        /// @brief 図形のデータを取得する
-        /// @tparam T 図形の型
-        /// @return 図形
-        template <class T>
-        T getData() const {
-            return std::get<T>(m_data);
-        }
-
-        /// @brief 図形を引数にして関数を呼び出す
-        /// @tparam Visitor Visitorの戻り値の型
-        /// @param visitor Visitorオブジェクト
-        template <class Visitor>
-        void visit(Visitor&& visitor) const {
-            return std::visit(visitor, m_data);
-        }
+        static void _Formatter(FormatData& formatData, const GeoJSONGeometry& geometry);
     };
 
-    inline void Formatter(FormatData& formatData, const Geometry& geometry) {
-        Formatter(formatData, geometry.type);
-        geometry.visit([&formatData](const auto& g) { Formatter(formatData, g); });
-    }
-
-    /// @brief Featureオブジェクト
+    /// @brief GeoJSON Feature オブジェクト
     /// @detail https://tools.ietf.org/html/rfc7946#section-3.2
-    class Feature : public detail::GeoJSONBase {
+    class GeoJSONFeature : public GeoJSONBase {
     public:
-        /// @brief Geometryオブジェクト
-        Geometry geometry;
 
-        /// @brief プロパティのオブジェクト
-        JSON properties;
+        /// @brief GeoJSON Feature オブジェクトを作成します。
+        /// @param object JSON データ
+        SIV3D_NODISCARD_CXX20
+            GeoJSONFeature(const JSON& object);
+
+        /// @brief GeoJSONGeometry データを返します。
+        /// @return GeoJSONGeometry データ
+        [[nodiscard]]
+        const GeoJSONGeometry& getGeometry() const noexcept;
+
+        /// @brief GeoJSON Feature の properties を返します。
+        /// @return GeoJSON Feature の properties
+        [[nodiscard]]
+        const JSON& getProperties() const noexcept;
+
+        /// @brief GeoJSON Feature の id を返します。
+        /// @return GeoJSON Feature の id
+        [[nodiscard]]
+        const std::variant<std::monostate, String, double>& getID() const noexcept;
+
+        friend void Formatter(FormatData& formatData, const GeoJSONFeature& feature) {
+            _Formatter(formatData, feature);
+        }
+
+    private:
+
+        /// @brief Geometry オブジェクト
+        GeoJSONGeometry m_geometry;
+
+        /// @brief プロパティオブジェクト
+        JSON m_properties;
 
         /// @brief 識別子
-        Optional<std::variant<String, double>> id = none;
+        std::variant<std::monostate, String, double> m_id;
 
-        /// @brief Featureオブジェクトを作る
-        /// @param object JSON内のオブジェクト
-        Feature(const JSON& object)
-            : detail::GeoJSONBase({ object })
-            , geometry(object[U"geometry"])
-            /*, properties(object[U"properties"])*/ {
-            if (type != GeoJSONType::Feature) {
-                throw Error(U"\"type\" must be \"Feature\"");
-            }
-            if (object.hasElement(U"properties")) { // propertiesは必須なので本来このifはいらないが、JapanCityGeoJsonがpropertiesを入れていないため暫定的にifに入れてある
-                properties = object[U"properties"];
-            }
-            if (object.hasElement(U"id")) {
-                switch (object[U"id"].getType()) {
-                case JSONValueType::String:
-                    id = { object[U"id"].getString() };
-                    break;
-                case JSONValueType::Number:
-                    id = { object[U"id"].get<double>() };
-                    break;
-                default:
-                    throw Error(U"\"id\" must be either a String or Number");
-                }
-            }
-        }
+        static void _Formatter(FormatData& formatData, const GeoJSONFeature& feature);
     };
-
-    inline void Formatter(FormatData& formatData, const Feature& feature) {
-        Formatter(formatData, feature.type);
-        formatData.string.append(U": ");
-        Formatter(formatData, feature.geometry);
-    }
 
     /// @brief FeatureCollectionオブジェクト
     /// @detail https://tools.ietf.org/html/rfc7946#section-3.3
-    class FeatureCollection : public detail::GeoJSONBase {
+    class GeoJSONFeatureCollection : public GeoJSONBase {
     public:
+
+        /// @brief FeatureCollection オブジェクトを作成します。
+        /// @param object JSON データ
+        SIV3D_NODISCARD_CXX20
+            GeoJSONFeatureCollection(const JSON& object);
+
+        /// @brief GeoJSON Feature の一覧を返します。
+        /// @return GeoJSON Feature の一覧
+        [[nodiscard]]
+        const Array<GeoJSONFeature>& getFeatures() const noexcept;
+
+        friend void Formatter(FormatData& formatData, const GeoJSONFeatureCollection& featureCollection) {
+            _Formatter(formatData, featureCollection);
+        }
+
+    private:
+
         /// @brief Featureの配列
-        Array<Feature> features;
+        Array<GeoJSONFeature> m_features;
 
-        /// @brief FeatureCollectionオブジェクトを作る
-        /// @param object JSON内のオブジェクト
-        FeatureCollection(const JSON& object)
-            : detail::GeoJSONBase({ object })
-            , features(readArray<Feature>(object[U"features"], [](const JSON& element) { return Feature{ element }; })) {
-            if (type != GeoJSONType::FeatureCollection) {
-                throw Error(U"\"type\" must be \"FeatureCollection\"");
-            }
-        }
+        static void _Formatter(FormatData& formatData, const GeoJSONFeatureCollection& featureCollection);
     };
-
-    inline void Formatter(FormatData& formatData, const FeatureCollection& featureCollection) {
-        Formatter(formatData, featureCollection.type);
-        formatData.string.append(U":");
-        for (const auto& feature : featureCollection.features) {
-            formatData.string.append(U"\n  ");
-            Formatter(formatData, feature);
-        }
-    }
 }

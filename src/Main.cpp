@@ -1,49 +1,66 @@
 ﻿#include <Siv3D.hpp> // OpenSiv3D v0.6
 #include "GeoJSON.h"
 
-SIV3D_SET(EngineOption::Renderer::Direct3D11)
+struct Prefecture {
+    String name;
+    MultiPolygon polygons;
+};
 
 void Main() {
-    const auto& countries = geojson::FeatureCollection{ JSON::Load(U"countries.geojson") }.features;
-    const auto& japan = std::find_if(countries.begin(), countries.end(), [](const auto& feature) {
-        return (feature.properties[U"ADMIN"].getString() == U"Japan");
-    })->geometry.getData<Array<Polygon>>(); // 他の国で試す場合、geometry.typeに応じてgetDataの型を変えること
+    MultiPolygon unitedKingdom;
+    {
+        // 世界全体のファイルから国名を指定して検索
+        // https://datahub.io/core/geo-countries
+        const Array<GeoJSONFeature> countries = GeoJSONFeatureCollection{ JSON::Load(U"countries.geojson") }.getFeatures();
 
-    // 他の国のデータがいらないなら、ファイルを分けたほうが読み込み時間が減る
-    // const auto& japan = geojson::FeatureCollection{ JSON::Load(U"japan.geojson") }.features[0].geometry.getData<Array<Polygon>>();
-
-    // https://github.com/niiyz/JapanCityGeoJson を使いたい場合
-    HashTable<String, Color> colors;
-    const auto& tokyo = geojson::FeatureCollection{ JSON::Load(U"JapanCityGeoJson/prefectures/13.json") }.features
-        .map([&colors](const geojson::Feature& feature) {
-        const auto& code = std::get<String>(feature.id.value());
-        if (!colors.contains(code)) {
-            colors.emplace(code, RandomColor()); // 市区町村コードごとに色を決定
+        for (const auto& country : countries) {
+            if (country.getProperties()[U"ADMIN"].getString() == U"United Kingdom") {
+                unitedKingdom = country.getGeometry().getPolygons();
+                break;
+            }
         }
-        return std::make_pair(feature.geometry.getData<Polygon>(), colors[code]);
+    }
+
+    // countries.geojson を切り貼りして国単体のファイルを用意することで、以下のようにも書ける
+    // const MultiPolygon japan = GeoJSONFeatureCollection{ JSON::Load(U"japan.geojson") }.getFeatures()
+    //     .front().getGeometry().getPolygons();
+
+    // 日本の都道府県
+    // https://github.com/dotnsf/geojsonjapan/
+    const Array<Prefecture> prefectures = GeoJSONFeatureCollection{ JSON::Load(U"prefectures.geojson") }.getFeatures()
+        .map([](const GeoJSONFeature& feature) {
+        return Prefecture{
+            feature.getProperties()[U"nam_ja"].getString(),
+            feature.getGeometry().getPolygons()
+        };
     });
 
-    auto setting = Camera2DParameters::Default();
-    setting.maxScale = 256;
-    Camera2D camera{ { 0, 0 }, 2.0, setting };
+    Camera2D camera{ Vec2{ 139.69, -35.69 }, 128, Camera2DParameters{ .maxScale = 4096.0 } };
 
     while (System::Update()) {
+        ClearPrint();
+        Print << (camera.getCenter()) * Vec2 { 1, -1 };
+        Print << camera.getScale() << U"x";
+
         camera.update();
         {
             const auto ct = camera.createTransformer();
-            ClearPrint();
-            Print << (camera.getCenter()) * Vec2 { 1, -1 };
-            Print << camera.getScale() << U"x";
 
-            Rect(Arg::center(0, 0), 360, 180).draw(Palette::Lightskyblue); // 海
-
+            Rect{ Arg::center(0, 0), 360, 180 }.draw(Palette::Lightskyblue); // 海
             {
-                Transformer2D mt{ Mat3x2{ 1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f } };
-                for (const auto& polygon : japan) {
-                    polygon.draw(Palette::Forestgreen);
-                }
-                for (const auto& city : tokyo) {
-                    city.first.draw(city.second);
+                Transformer2D mt{ Mat3x2{ 1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f }, true };
+
+                unitedKingdom.draw(Palette::Forestgreen); // イギリス
+                Circle(0.0, 51.48, 0.1).draw(Palette::Darkorange); // グリニッジ天文台
+
+                for (const auto& prefecture : prefectures) { // 日本の各都道府県
+                    if (prefecture.polygons.mouseOver()) {
+                        prefecture.polygons.draw(Palette::Darkorange);
+                        Print << prefecture.name;
+                    }
+                    else {
+                        prefecture.polygons.draw(Palette::Forestgreen);
+                    }
                 }
             }
         }
