@@ -1,4 +1,5 @@
-[OpenSiv3D](https://github.com/yurkth/OpenSiv3D) v0.6にマージされたので、そちらを利用してください。
+こちらは古いコードになっています。
+最新のコードは[OpenSiv3D](https://github.com/yurkth/OpenSiv3D) v0.6にマージされたので、そちらを利用してください。
 
 ---
 
