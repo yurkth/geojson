@@ -1,3 +1,7 @@
+[OpenSiv3D](https://github.com/yurkth/OpenSiv3D) v0.6にマージされたので、そちらを利用してください。
+
+---
+
 # GeoJSON
 
 [OpenSiv3D Challenge 2021](https://zenn.dev/reputeless/scraps/79865055750784)より、GeoJSONのパーサを作成しました。
